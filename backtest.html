@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Analisis Backtest</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            padding-top: 7rem; 
+        }
+        .header-global {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem 1.5rem;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 50;
+            color: #333333;
+            font-size: 0.75rem; 
+        }
+        .chart-container-wrapper {
+            position: relative;
+            height: 22rem;
+        }
+        
+        /* Gaya untuk bingkai foto & slider */
+        #photo-frame {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s ease-in-out; /* Transisi untuk ukuran */
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-color: #f8fafc;
+            position: relative;
+        }
+        #photo-frame.no-photo {
+            min-height: 250px; /* Tinggi minimum hanya saat kosong */
+        }
+        #photo-frame:hover {
+            border-color: #94a3b8;
+        }
+        #photo-frame.has-photo {
+            border-style: solid;
+            border-color: #e2e8f0;
+            padding: 0;
+            height: auto; /* Biarkan tinggi menyesuaikan konten */
+        }
+        #photo-slider-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .slider-photo {
+            max-width: 100%;
+            height: auto; /* Tinggi otomatis menyesuaikan lebar */
+            width: auto;
+            display: none;
+        }
+        .slider-photo.active {
+            display: block;
+        }
+        .slider-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.4);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 2.5rem;
+            height: 2.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .slider-nav:hover {
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        #prev-photo { left: 0.5rem; }
+        #next-photo { right: 0.5rem; }
+
+
+        @media (min-width: 768px) {
+            .header-global {
+                padding: 2rem 2.5rem; 
+                font-size: 0.875rem; 
+            }
+        }
+
+        @media (max-width: 767px) {
+            .chart-container-wrapper {
+                height: auto;
+                aspect-ratio: 16 / 9;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Global Header Component -->
+    <header class="header-global">
+        <div class="font-light"><a href="#">Backtest</a></div>
+        <nav class="hidden md:flex items-center space-x-5 font-light">
+            <a href="index.html" class="hover:text-blue-600 transition-colors">Home</a>
+            <a href="about_new.html" class="hover:text-blue-600 transition-colors">About</a>
+            <a href="services.html" class="hover:text-blue-600 transition-colors">Services</a>
+            <a href="contact.html" class="hover:text-blue-600 transition-colors">Contact</a>
+            <a href="beranda.html" class="hover:text-blue-600 transition-colors">Beranda</a>
+            <a href="investasi.html" class="hover:text-blue-600 transition-colors">Investasi</a>
+        </nav>
+        <div class="md:hidden">
+            <button id="hamburger-button" class="text-gray-700 focus:outline-none">
+                <svg id="hamburger-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                <svg id="close-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden fixed inset-0 bg-white z-40 flex flex-col items-center justify-center space-y-6">
+        <div id="mobile-datetime" class="text-gray-600 text-sm font-light text-center"></div>
+        <nav class="flex flex-col items-center space-y-5 text-lg">
+            <a href="index.html" class="hover:text-blue-600 transition-colors">Home</a>
+            <a href="about_new.html" class="hover:text-blue-600 transition-colors">About</a>
+            <a href="services.html" class="hover:text-blue-600 transition-colors">Services</a>
+            <a href="contact.html" class="hover:text-blue-600 transition-colors">Contact</a>
+            <a href="beranda.html" class="hover:text-blue-600 transition-colors">Beranda</a>
+            <a href="investasi.html" class="hover:text-blue-600 transition-colors">Investasi</a>
+        </nav>
+    </div>
+    
+    <!-- Kontainer utama -->
+    <div class="container mx-auto bg-white p-4 md:p-6 rounded-xl shadow-lg border border-gray-200 space-y-5">
+
+        <div class="bg-gray-900 text-white p-5 md:p-6 rounded-t-xl">
+            <h1 class="text-2xl font-light text-center">Analisis Backtest Perdagangan</h1>
+            <p class="text-center text-gray-400 font-light mt-1 text-sm">Laporan komprehensif dari data file CSV Anda.</p>
+        </div>
+
+        <div class="p-4 md:p-6 space-y-5">
+            <!-- ===== BAGIAN UNGGAH FOTO & FILE ===== -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start mb-6">
+                <!-- Kolom Unggah Foto (Slider) -->
+                <div class="w-full">
+                    <h3 class="text-base font-light text-gray-900 text-center mb-3">Tambahkan Foto (PNG/JPG)</h3>
+                    <div id="photo-frame" class="w-full rounded-lg p-4 no-photo">
+                        <div id="photo-slider-container">
+                             <span id="photo-placeholder" class="text-gray-500 text-sm text-center">Klik untuk menambah foto.<br>Tahan lama untuk menghapus.</span>
+                        </div>
+                        <button id="prev-photo" class="slider-nav hidden">&lt;</button>
+                        <button id="next-photo" class="slider-nav hidden">&gt;</button>
+                        <input type="file" id="photo-upload" accept="image/png, image/jpeg" class="hidden" multiple>
+                    </div>
+                </div>
+                <!-- Kolom Unggah File -->
+                <div class="w-full flex flex-col items-center justify-start space-y-4 h-full">
+                     <h3 class="text-base font-light text-gray-900 text-center mb-1">Tambahkan File Lain</h3>
+                    <!-- Tombol Unggah PDF -->
+                    <label class="w-full md:w-auto inline-flex items-center justify-center px-6 py-2 bg-red-700 text-white font-light rounded-full shadow-md hover:bg-red-800 transform hover:scale-105 transition-all duration-200 cursor-pointer text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Unggah File PDF
+                        <input type="file" id="pdf-upload-secondary" accept="application/pdf" class="hidden" />
+                    </label>
+                    <!-- Tombol Unggah CSV -->
+                    <label id="upload-button" class="w-full md:w-auto inline-flex items-center justify-center px-6 py-2 bg-gray-900 text-white font-light rounded-full shadow-md hover:bg-gray-700 transform hover:scale-105 transition-all duration-200 cursor-pointer text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" /><polyline points="12 12 8 8 12 4" /><line x1="12" y1="4" x2="12" y2="15" />
+                        </svg>
+                        Unggah File CSV
+                        <input type="file" id="file-upload" accept=".csv" class="hidden" />
+                    </label>
+                    <!-- Kontainer untuk menampilkan file PDF yang diunggah -->
+                    <div id="pdf-file-container" class="w-full mt-4 text-center"></div>
+                </div>
+            </div>
+            <!-- ===== AKHIR BAGIAN UNGGAH ===== -->
+
+
+            <!-- Wadah untuk pesan status (loading atau error) -->
+            <div id="status-container" class="text-center mt-3"></div>
+
+            <!-- Bagian Hasil -->
+            <div id="results-container" class="space-y-6 hidden">
+                <!-- Statistik Ringkasan Utama -->
+                <div id="primary-metrics-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center"></div>
+                
+                <!-- Statistik Tambahan -->
+                <div id="secondary-metrics-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 text-center"></div>
+
+                <!-- Grafik Profit/Loss -->
+                <div class="w-full">
+                    <div class="bg-gray-100 p-3 rounded-xl shadow-inner mt-4 border border-gray-200 flex flex-col">
+                        <h3 class="text-base font-light text-gray-900 text-center mb-3">Kurva Profit/Loss Kumulatif</h3>
+                        <div class="chart-container-wrapper"><canvas id="profitChart"></canvas></div>
+                    </div>
+                </div>
+                
+                <!-- Grafik Pertumbuhan Persentase -->
+                <div class="w-full" id="percentage-growth-chart-container" style="display:none;">
+                    <div class="bg-gray-100 p-3 rounded-xl shadow-inner mt-4 border border-gray-200 flex flex-col">
+                        <h3 class="text-base font-light text-gray-900 text-center mb-3">Kurva Pertumbuhan Persentase</h3>
+                        <div class="chart-container-wrapper"><canvas id="percentageGrowthChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Grafik Pertumbuhan Balance -->
+                <div class="w-full" id="balance-growth-chart-container" style="display:none;">
+                    <div class="bg-gray-100 p-3 rounded-xl shadow-inner mt-4 border border-gray-200 flex flex-col">
+                        <h3 class="text-base font-light text-gray-900 text-center mb-3">Kurva Pertumbuhan Balance Kumulatif</h3>
+                        <div class="chart-container-wrapper"><canvas id="balanceGrowthChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Input Simulasi Saldo -->
+                <div class="bg-gray-100 p-5 md:p-6 rounded-xl shadow-md border border-gray-200 space-y-3">
+                    <h3 class="text-lg font-light text-gray-900 text-center">Parameter Analisis</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+                        <div>
+                            <label for="initial-balance" class="block text-xs font-light text-gray-700">Saldo Awal</label>
+                            <input type="number" id="initial-balance" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-xs p-2" value="1000">
+                        </div>
+                        <div>
+                            <label for="risk-percentage" class="block text-xs font-light text-gray-700">Presentase per Trade (%)</label>
+                            <input type="number" id="risk-percentage" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-xs p-2" value="1" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabel Ringkasan Bulanan -->
+                <div id="monthly-summary-container" class="w-full" style="display:none;">
+                    <div class="bg-gray-100 p-3 rounded-xl shadow-inner mt-4 border border-gray-200">
+                        <h3 class="text-base font-light text-gray-900 text-center mb-3">Ringkasan P/L Bulanan (%)</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-center text-[10px] leading-tight">
+                                <thead class="border-b-2 border-gray-300">
+                                    <tr>
+                                        <th class="p-2 font-light">Tahun</th><th class="p-2 font-light">Jan</th><th class="p-2 font-light">Feb</th><th class="p-2 font-light">Mar</th><th class="p-2 font-light">Apr</th><th class="p-2 font-light">Mei</th><th class="p-2 font-light">Jun</th><th class="p-2 font-light">Jul</th><th class="p-2 font-light">Agu</th><th class="p-2 font-light">Sep</th><th class="p-2 font-light">Okt</th><th class="p-2 font-light">Nov</th><th class="p-2 font-light">Des</th><th class="p-2 font-light">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="monthly-summary-body"></tbody>
+                                <tfoot id="monthly-summary-footer" class="border-t-2 border-gray-300"></tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistik Pair -->
+                <div id="pair-statistics-container" class="w-full" style="display:none;">
+                    <div class="bg-gray-100 p-3 rounded-xl shadow-inner mt-4 border border-gray-200">
+                        <h3 class="text-base font-light text-gray-900 text-center mb-3">Statistik Keberhasilan per Pair</h3>
+                        <div id="pair-statistics-body" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4"></div>
+                    </div>
+                </div>
+                
+                <!-- Tabel CSV -->
+                <div id="table-container" class="overflow-x-auto rounded-lg shadow-inner border border-gray-200 mt-4">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50"><tr id="table-headers"></tr></thead>
+                        <tbody id="table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+
+                <!-- Panduan -->
+                <div class="bg-gray-100 p-5 md:p-6 rounded-xl shadow-md border border-gray-200 space-y-4">
+                    <h3 class="text-lg font-light text-gray-900 text-center">Panduan Penggunaan Backtest</h3>
+                    <p class="text-gray-700 text-sm text-center">Selamat datang! Alat ini membantu Anda menguji strategi perdagangan menggunakan data historis.</p>
+                    <h4 class="font-light text-base text-gray-800 pt-3 border-t border-gray-300">Langkah 1: Siapkan File CSV Anda</h4>
+                    <p class="text-gray-700 text-xs">Pastikan file CSV Anda memiliki format yang benar dengan header: <code>Pair;Action;Tanggal Entry;Tanggal Exit;Entry;TP;SL;Keterangan</code>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Hamburger Menu Logic ---
+        const hamburgerButton = document.getElementById('hamburger-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileDateTime = document.getElementById('mobile-datetime');
+        const hamburgerIcon = document.getElementById('hamburger-icon');
+        const closeIcon = document.getElementById('close-icon');
+
+        hamburgerButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+            hamburgerIcon.classList.toggle('hidden');
+            closeIcon.classList.toggle('hidden');
+        });
+        
+        function updateMobileDateTime() {
+            const now = new Date();
+            const dateOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            const dateString = now.toLocaleDateString('id-ID', dateOptions);
+            const timeString = now.toLocaleTimeString('id-ID', timeOptions).replace(/\./g, ':');
+            mobileDateTime.textContent = `${dateString} ${timeString}`;
+        }
+        setInterval(updateMobileDateTime, 1000);
+        updateMobileDateTime();
+        // --- End of Hamburger Menu Logic ---
+        
+        // --- Photo Slider & PDF Upload Logic ---
+        const photoFrame = document.getElementById('photo-frame');
+        const photoUploadInput = document.getElementById('photo-upload');
+        const photoSliderContainer = document.getElementById('photo-slider-container');
+        const photoPlaceholder = document.getElementById('photo-placeholder');
+        const prevPhotoButton = document.getElementById('prev-photo');
+        const nextPhotoButton = document.getElementById('next-photo');
+        const pdfUploadSecondaryInput = document.getElementById('pdf-upload-secondary');
+        const pdfFileContainer = document.getElementById('pdf-file-container');
+        
+        let uploadedPhotos = [];
+        let currentPhotoIndex = 0;
+        const MAX_PHOTOS = 5;
+        let longPressTimer;
+
+        // Klik bingkai untuk memicu input file foto
+        photoFrame.addEventListener('click', (e) => {
+            if (e.target !== prevPhotoButton && e.target !== nextPhotoButton) {
+                 if (uploadedPhotos.length < MAX_PHOTOS) {
+                    photoUploadInput.click();
+                } else {
+                    alert(`Anda hanya dapat mengunggah maksimal ${MAX_PHOTOS} foto.`);
+                }
+            }
+        });
+
+        // Menangani pemilihan file foto
+        photoUploadInput.addEventListener('change', (event) => {
+            const files = event.target.files;
+            if (files.length > 0) {
+                const spaceLeft = MAX_PHOTOS - uploadedPhotos.length;
+                const filesToProcess = Array.from(files).slice(0, spaceLeft);
+
+                filesToProcess.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        uploadedPhotos.push(e.target.result);
+                        renderPhotoSlider();
+                    };
+                    reader.readAsDataURL(file);
+                });
+                photoUploadInput.value = ''; // Reset input
+            }
+        });
+        
+        function renderPhotoSlider() {
+            photoSliderContainer.innerHTML = ''; // Hapus konten lama
+
+            if (uploadedPhotos.length === 0) {
+                photoSliderContainer.appendChild(photoPlaceholder);
+                photoPlaceholder.classList.remove('hidden');
+                photoFrame.classList.remove('has-photo');
+                photoFrame.classList.add('no-photo');
+                prevPhotoButton.classList.add('hidden');
+                nextPhotoButton.classList.add('hidden');
+                return;
+            }
+
+            photoPlaceholder.classList.add('hidden');
+            photoFrame.classList.add('has-photo');
+            photoFrame.classList.remove('no-photo');
+
+            uploadedPhotos.forEach((photoSrc, index) => {
+                const img = document.createElement('img');
+                img.src = photoSrc;
+                img.alt = `Foto ${index + 1}`;
+                img.className = 'slider-photo';
+                if (index === currentPhotoIndex) {
+                    img.classList.add('active');
+                }
+                photoSliderContainer.appendChild(img);
+            });
+            
+            if (uploadedPhotos.length > 1) {
+                prevPhotoButton.classList.remove('hidden');
+                nextPhotoButton.classList.remove('hidden');
+            } else {
+                prevPhotoButton.classList.add('hidden');
+                nextPhotoButton.classList.add('hidden');
+            }
+            savePhotosToLocalStorage();
+        }
+        
+        prevPhotoButton.addEventListener('click', () => {
+            currentPhotoIndex = (currentPhotoIndex > 0) ? currentPhotoIndex - 1 : uploadedPhotos.length - 1;
+            renderPhotoSlider();
+        });
+
+        nextPhotoButton.addEventListener('click', () => {
+            currentPhotoIndex = (currentPhotoIndex < uploadedPhotos.length - 1) ? currentPhotoIndex + 1 : 0;
+            renderPhotoSlider();
+        });
+
+        photoFrame.addEventListener('mousedown', () => {
+             if (uploadedPhotos.length > 0) longPressTimer = setTimeout(deleteCurrentPhoto, 1000);
+        });
+        photoFrame.addEventListener('mouseup', () => clearTimeout(longPressTimer));
+        photoFrame.addEventListener('mouseleave', () => clearTimeout(longPressTimer));
+        photoFrame.addEventListener('touchstart', (e) => {
+            if (uploadedPhotos.length > 0) { e.preventDefault(); longPressTimer = setTimeout(deleteCurrentPhoto, 1000); }
+        });
+        photoFrame.addEventListener('touchend', () => clearTimeout(longPressTimer));
+
+        function deleteCurrentPhoto() {
+            if (uploadedPhotos.length > 0) {
+                uploadedPhotos.splice(currentPhotoIndex, 1);
+                if (currentPhotoIndex >= uploadedPhotos.length) {
+                    currentPhotoIndex = Math.max(0, uploadedPhotos.length - 1);
+                }
+                renderPhotoSlider();
+            }
+        }
+        
+        function savePhotosToLocalStorage() {
+            localStorage.setItem('savedPhotos', JSON.stringify(uploadedPhotos));
+        }
+
+        function loadPhotosFromLocalStorage() {
+            const savedPhotos = localStorage.getItem('savedPhotos');
+            if (savedPhotos) {
+                uploadedPhotos = JSON.parse(savedPhotos);
+                renderPhotoSlider();
+            }
+        }
+
+        // Menangani unggahan file PDF
+        pdfUploadSecondaryInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const fileData = { name: file.name, dataUrl: e.target.result };
+                    localStorage.setItem('savedPdfFile', JSON.stringify(fileData));
+                    renderPdfFileInfo();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function renderPdfFileInfo() {
+            const fileDataJSON = localStorage.getItem('savedPdfFile');
+            pdfFileContainer.innerHTML = '';
+
+            if (fileDataJSON) {
+                const fileData = JSON.parse(fileDataJSON);
+                const fileInfoDiv = document.createElement('div');
+                fileInfoDiv.className = 'flex items-center justify-between bg-gray-100 p-2 rounded-lg w-full max-w-xs mx-auto';
+                
+                const fileIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-600 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z" clip-rule="evenodd" /><path d="M7 12a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z" /></svg>`;
+                const fileNameSpan = `<span class="text-xs text-gray-700 truncate" title="${fileData.name}">${fileData.name}</span>`;
+
+                const downloadButton = document.createElement('button');
+                downloadButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 hover:text-gray-800" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
+                downloadButton.className = 'ml-2';
+                downloadButton.title = 'Unduh File';
+                downloadButton.onclick = () => {
+                    const link = document.createElement('a');
+                    link.href = fileData.dataUrl;
+                    link.download = fileData.name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                };
+
+                fileInfoDiv.innerHTML = `<div class="flex items-center truncate">${fileIcon}${fileNameSpan}</div>`;
+                fileInfoDiv.appendChild(downloadButton);
+                pdfFileContainer.appendChild(fileInfoDiv);
+            }
+        }
+        // --- End of Photo & PDF Upload Logic ---
+
+
+        // Mendapatkan elemen HTML dari DOM
+        const fileUpload = document.getElementById('file-upload');
+        const statusContainer = document.getElementById('status-container');
+        const resultsContainer = document.getElementById('results-container');
+        const primaryMetricsGrid = document.getElementById('primary-metrics-grid');
+        const secondaryMetricsGrid = document.getElementById('secondary-metrics-grid');
+        const profitChartCanvas = document.getElementById('profitChart');
+        const percentageGrowthChartCanvas = document.getElementById('percentageGrowthChart');
+        const balanceGrowthChartCanvas = document.getElementById('balanceGrowthChart');
+        const tableContainer = document.getElementById('table-container');
+        const tableHeaders = document.getElementById('table-headers');
+        const tableBody = document.getElementById('table-body');
+        
+        const initialBalanceInput = document.getElementById('initial-balance');
+        const riskPercentageInput = document.getElementById('risk-percentage');
+        
+        const monthlySummaryContainer = document.getElementById('monthly-summary-container');
+        const monthlySummaryBody = document.getElementById('monthly-summary-body');
+        const monthlySummaryFooter = document.getElementById('monthly-summary-footer');
+        
+        let profitChartInstance;
+        let percentageGrowthChartInstance;
+        let balanceGrowthChartInstance;
+        let csvData = [];
+        let rawCsvText = '';
+
+        function parseDate(dateString) {
+            const parts = dateString.split('-');
+            if (parts.length !== 3) return null;
+            const day = parseInt(parts[0], 10);
+            const monthName = parts[1];
+            if (!monthName) return null;
+            const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(monthName);
+            if (month === -1) return null;
+            let year = parseInt(parts[2], 10);
+            if (year < 100) year = 2000 + year;
+            return new Date(year, month, day);
+        }
+
+        function parseCsv(text) {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            if (lines.length < 1) return [];
+            const headers = lines[0].split(';').map(header => header.trim());
+            const data = lines.slice(1).map(line => {
+                const values = line.split(';').map(value => value.trim());
+                if (values.length !== headers.length) return null;
+                let row = {};
+                headers.forEach((header, i) => { row[header] = values[i]; });
+                return row;
+            }).filter(row => row !== null);
+            return data;
+        }
+
+        function calculateStatistics(data, riskPercentage, initialBalance) {
+            let cumulativeProfit = 0, peak = 0, maxDrawdownPoints = 0;
+            let profitHistory = [{ trade: 0, profit: 0 }];
+            let totalTrades = 0, winCount = 0;
+            let currentTPStreak = 0, maxTPStreak = 0, currentSLStreak = 0, maxSLStreak = 0;
+            let totalTPDistance = 0, totalSLDistance = 0;
+            let totalHoldingDays = 0;
+
+            let cumulativeGrowth = 0;
+            let growthHistory = [{ trade: 0, growth: 0 }];
+            let peakGrowth = 0, maxDrawdownPercentage = 0;
+
+            let currentBalance = initialBalance;
+            const balanceHistory = [{ trade: 0, balance: currentBalance }];
+            
+            data.forEach((trade, index) => {
+                const entryPrice = parseFloat(trade['Entry']);
+                const tpPrice = parseFloat(trade['TP']);
+                const slPrice = parseFloat(trade['SL']);
+                const keterangan = trade['Keterangan'].toUpperCase();
+
+                if (isNaN(entryPrice) || isNaN(tpPrice) || isNaN(slPrice)) return;
+                
+                totalTrades++;
+                let profitLossPoints = 0;
+                const tpDistance = Math.abs(tpPrice - entryPrice);
+                const slDistance = Math.abs(slPrice - entryPrice);
+
+                if (keterangan === 'TP') {
+                    profitLossPoints = tpDistance;
+                    winCount++;
+                    currentTPStreak++;
+                    currentSLStreak = 0;
+                    if (currentTPStreak > maxTPStreak) maxTPStreak = currentTPStreak;
+                    cumulativeGrowth += riskPercentage;
+                    currentBalance += currentBalance * (riskPercentage / 100);
+                } else if (keterangan === 'SL') {
+                    profitLossPoints = -slDistance;
+                    currentSLStreak++;
+                    currentTPStreak = 0;
+                    if (currentSLStreak > maxSLStreak) maxSLStreak = currentSLStreak;
+                    cumulativeGrowth -= riskPercentage;
+                    currentBalance -= currentBalance * (riskPercentage / 100);
+                }
+
+                totalTPDistance += tpDistance;
+                totalSLDistance += slDistance;
+
+                cumulativeProfit += profitLossPoints;
+                if (cumulativeProfit > peak) peak = cumulativeProfit;
+                const drawdown = peak - cumulativeProfit;
+                if (drawdown > maxDrawdownPoints) maxDrawdownPoints = drawdown;
+                profitHistory.push({ trade: index + 1, profit: cumulativeProfit });
+
+                if (cumulativeGrowth > peakGrowth) peakGrowth = cumulativeGrowth;
+                const growthDrawdown = peakGrowth - cumulativeGrowth;
+                if (growthDrawdown > maxDrawdownPercentage) maxDrawdownPercentage = growthDrawdown;
+                growthHistory.push({ trade: index + 1, growth: cumulativeGrowth });
+                balanceHistory.push({ trade: index + 1, balance: currentBalance });
+
+                try {
+                    const entryDate = parseDate(trade['Tanggal Entry']);
+                    const exitDate = parseDate(trade['Tanggal Exit']);
+                    if (entryDate && exitDate) {
+                        totalHoldingDays += (exitDate.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24);
+                    }
+                } catch (e) { console.error("Error parsing dates:", e); }
+            });
+
+            const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
+            const avgRiskReward = totalSLDistance > 0 ? totalTPDistance / totalSLDistance : 0;
+            const avgHoldingPeriod = totalTrades > 0 ? totalHoldingDays / totalTrades : 0;
+            const avgProfitPerTrade = totalTrades > 0 ? cumulativeGrowth / totalTrades : 0;
+
+            let totalMonths = 0;
+            if(data.length > 1) {
+                const firstDate = parseDate(data[0]['Tanggal Entry']);
+                const lastDate = parseDate(data[data.length-1]['Tanggal Exit']);
+                if(firstDate && lastDate) {
+                    totalMonths = (lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1;
+                }
+            }
+            
+            const avgMonthlyGain = totalMonths > 0 ? cumulativeGrowth / totalMonths : 0;
+            const avgYearlyGain = totalMonths > 0 ? (cumulativeGrowth / totalMonths) * 12 : 0;
+            
+            return {
+                totalTrades, finalProfit: cumulativeProfit, winRate: winRate.toFixed(2),
+                maxDrawdownPoints, maxTPStreak, maxSLStreak, profitHistory,
+                maxDrawdownPercentage, avgProfitPerTrade, avgMonthlyGain, avgYearlyGain,
+                finalBalance: currentBalance, avgRiskReward, avgHoldingPeriod,
+                growthHistory, balanceHistory
+            };
+        }
+        
+        function calculateMonthlySummary(data, riskPercentage) {
+            if (isNaN(riskPercentage) || riskPercentage <= 0 || data.length === 0) {
+                return { percentageSummary: {}, yearlyTotals: {}, overallTotalPercentage: 0, monthlyTradeCounts: {}, yearlyTradeCounts: {}, overallTotalTrades: 0 };
+            }
+
+            const monthlyPercentages = {};
+            const yearlyPercentages = {};
+            const monthlyTradeCounts = {};
+            const yearlyTradeCounts = {};
+            let overallTotalPercentage = 0;
+            let overallTotalTrades = 0;
+
+            const sortedData = [...data].sort((a, b) => {
+                const dateA = parseDate(a['Tanggal Exit']);
+                const dateB = parseDate(b['Tanggal Exit']);
+                return (dateA && dateB) ? dateA - dateB : 0;
+            });
+
+            sortedData.forEach(trade => {
+                const exitDate = parseDate(trade['Tanggal Exit']);
+                if (!exitDate) return;
+
+                const year = exitDate.getFullYear();
+                const month = exitDate.getMonth();
+
+                if (!monthlyPercentages[year]) monthlyPercentages[year] = Array(12).fill(0);
+                if (!yearlyPercentages[year]) yearlyPercentages[year] = 0;
+                if (!monthlyTradeCounts[year]) monthlyTradeCounts[year] = Array(12).fill(0);
+                if (!yearlyTradeCounts[year]) yearlyTradeCounts[year] = 0;
+
+                const keterangan = trade['Keterangan'].toUpperCase();
+                let percentageChange = 0;
+                if (keterangan === 'TP') {
+                    percentageChange = riskPercentage;
+                } else if (keterangan === 'SL') {
+                    percentageChange = -riskPercentage;
+                }
+                
+                monthlyPercentages[year][month] += percentageChange;
+                yearlyPercentages[year] += percentageChange;
+                overallTotalPercentage += percentageChange;
+                
+                monthlyTradeCounts[year][month]++;
+                yearlyTradeCounts[year]++;
+                overallTotalTrades++;
+            });
+
+            return { 
+                percentageSummary: monthlyPercentages, 
+                yearlyTotals: yearlyPercentages, 
+                overallTotalPercentage, 
+                monthlyTradeCounts, 
+                yearlyTradeCounts, 
+                overallTotalTrades 
+            };
+        }
+
+
+        function renderMonthlySummaryTable({ percentageSummary, yearlyTotals, overallTotalPercentage, monthlyTradeCounts, yearlyTradeCounts, overallTotalTrades }) {
+            monthlySummaryBody.innerHTML = '';
+            monthlySummaryFooter.innerHTML = '';
+
+            if (Object.keys(percentageSummary).length === 0) {
+                monthlySummaryContainer.style.display = 'none';
+                return;
+            }
+
+            const years = Object.keys(percentageSummary).sort();
+
+            years.forEach(year => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-200';
+                
+                const yearTd = document.createElement('td');
+                yearTd.className = 'p-2 font-light';
+                yearTd.textContent = year;
+                tr.appendChild(yearTd);
+
+                for (let i = 0; i < 12; i++) {
+                    const profitPercentage = percentageSummary[year][i];
+                    const tradeCount = monthlyTradeCounts[year] ? monthlyTradeCounts[year][i] : 0;
+                    const monthTd = document.createElement('td');
+                    monthTd.className = `p-2`;
+                    monthTd.innerHTML = `
+                        <p class="font-light ${profitPercentage > 0 ? 'text-black' : profitPercentage < 0 ? 'text-red-600' : 'text-gray-500'}">
+                            ${profitPercentage !== 0 ? `${profitPercentage.toFixed(2)}%` : '-'}
+                        </p>
+                        ${tradeCount > 0 ? `<p class="text-[9px] text-gray-500 mt-0.5">(${tradeCount})</p>` : ''}
+                    `;
+                    tr.appendChild(monthTd);
+                }
+
+                const totalYearPercentage = yearlyTotals[year];
+                const totalYearTrades = yearlyTradeCounts[year] || 0;
+                const totalTd = document.createElement('td');
+                totalTd.className = `p-2`;
+                totalTd.innerHTML = `
+                    <p class="font-light ${totalYearPercentage > 0 ? 'text-black' : totalYearPercentage < 0 ? 'text-red-600' : 'text-gray-500'}">
+                        ${totalYearPercentage !== 0 ? `${totalYearPercentage.toFixed(2)}%` : '-'}
+                    </p>
+                    ${totalYearTrades > 0 ? `<p class="text-[9px] text-gray-500 mt-0.5">(${totalYearTrades})</p>` : ''}
+                `;
+                tr.appendChild(totalTd);
+
+                monthlySummaryBody.appendChild(tr);
+            });
+            
+            const footerTr = document.createElement('tr');
+            const footerLabelTd = document.createElement('td');
+            footerLabelTd.colSpan = "13";
+            footerLabelTd.className = "p-2 text-right font-light";
+            footerLabelTd.textContent = "Total Keseluruhan";
+            footerTr.appendChild(footerLabelTd);
+
+            const footerValueTd = document.createElement('td');
+            footerValueTd.className = `p-2`;
+            footerValueTd.innerHTML = `
+                <p class="font-light ${overallTotalPercentage > 0 ? 'text-black' : overallTotalPercentage < 0 ? 'text-red-600' : 'text-gray-500'}">
+                    ${overallTotalPercentage.toFixed(2)}%
+                </p>
+                ${overallTotalTrades > 0 ? `<p class="text-[9px] text-gray-500 mt-0.5">(${overallTotalTrades})</p>` : ''}
+            `;
+            footerTr.appendChild(footerValueTd);
+            
+            monthlySummaryFooter.appendChild(footerTr);
+            monthlySummaryContainer.style.display = 'block';
+        }
+
+        function calculateAndRenderPairStatistics(data) {
+            const container = document.getElementById('pair-statistics-container');
+            const body = document.getElementById('pair-statistics-body');
+            if (!container || !body) return;
+
+            if (data.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            const pairStats = {};
+
+            data.forEach(trade => {
+                const pair = trade['Pair'];
+                const keterangan = trade['Keterangan']?.toUpperCase();
+
+                if (!pair) return;
+
+                if (!pairStats[pair]) {
+                    pairStats[pair] = { total: 0, wins: 0 };
+                }
+
+                pairStats[pair].total++;
+                if (keterangan === 'TP') {
+                    pairStats[pair].wins++;
+                }
+            });
+
+            body.innerHTML = ''; 
+
+            const sortedPairs = Object.keys(pairStats).sort();
+
+            for (const pair of sortedPairs) {
+                const stats = pairStats[pair];
+                const winRate = stats.total > 0 ? (stats.wins / stats.total) * 100 : 0;
+                const colorClass = winRate >= 50 ? 'text-green-600' : 'text-red-600';
+
+                const statElement = document.createElement('div');
+                statElement.className = 'bg-white p-3 rounded-lg shadow text-center';
+                statElement.innerHTML = `
+                    <p class="text-sm font-semibold text-gray-800">${pair}</p>
+                    <p class="text-lg font-bold ${colorClass} mt-1">${winRate.toFixed(2)}%</p>
+                    <p class="text-xs text-gray-500">(${stats.wins}/${stats.total} menang)</p>
+                `;
+                body.appendChild(statElement);
+            }
+
+            container.style.display = 'block';
+        }
+
+        function renderTable(data) {
+            tableHeaders.innerHTML = '';
+            tableBody.innerHTML = '';
+            if (data.length === 0) {
+                tableContainer.classList.add('hidden');
+                return;
+            }
+            const headers = Object.keys(data[0]);
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.className = 'px-2 py-2 text-left text-xs font-light text-gray-500 uppercase tracking-wider';
+                th.textContent = header;
+                tableHeaders.appendChild(th);
+            });
+            data.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                Object.values(row).forEach(value => {
+                    const td = document.createElement('td');
+                    td.className = 'px-2 py-2 whitespace-nowrap text-xs text-gray-800 font-light';
+                    td.textContent = value;
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+            tableContainer.classList.remove('hidden');
+        }
+
+        function renderMetrics(metrics) {
+            primaryMetricsGrid.innerHTML = '';
+            secondaryMetricsGrid.innerHTML = '';
+            
+            const formatPLPoints = (value) => (value * 10).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+            const primaryMetricsList = [
+                { label: 'Total Perdagangan', value: metrics.totalTrades },
+                { label: 'Probabilitas Menang', value: `${metrics.winRate}%`},
+                { label: 'P/L Kumulatif (Poin)', value: formatPLPoints(metrics.finalProfit) },
+            ];
+            primaryMetricsList.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-100 p-3 rounded-lg shadow-md border border-gray-200';
+                card.innerHTML = `<p class="text-xs font-light text-gray-700">${item.label}</p><p class="text-xl font-light text-gray-900 mt-1">${item.value}</p>`;
+                primaryMetricsGrid.appendChild(card);
+            });
+            
+            const secondaryMetricsList = [
+                { label: 'Max Drawdown (Poin)', value: metrics.maxDrawdownPoints.toFixed(2) },
+                { label: 'TP Berturut-turut', value: metrics.maxTPStreak },
+                { label: 'SL Berturut-turut', value: metrics.maxSLStreak },
+                { label: 'Max Drawdown (%)', value: `${metrics.maxDrawdownPercentage.toFixed(2)}%` },
+                { label: 'Avg. Profit/Trade (%)', value: `${metrics.avgProfitPerTrade.toFixed(2)}%` },
+                { label: 'Avg. Kenaikan Bulanan', value: `${metrics.avgMonthlyGain.toFixed(2)}%` },
+                { label: 'Avg. Kenaikan Tahunan', value: `${metrics.avgYearlyGain.toFixed(2)}%` },
+                { label: 'Saldo Akhir', value: `$${metrics.finalBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` },
+                { label: 'Avg. Risk:Reward', value: `1:${metrics.avgRiskReward.toFixed(2)}` },
+                { label: 'Avg. Holding', value: `${metrics.avgHoldingPeriod.toFixed(2)} hari` },
+            ];
+            secondaryMetricsGrid.innerHTML = '';
+            secondaryMetricsList.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-100 p-3 rounded-lg shadow-md border border-gray-200';
+                card.innerHTML = `<p class="text-xs font-light text-gray-700">${item.label}</p><p class="text-xl font-light text-gray-900 mt-1">${item.value}</p>`;
+                secondaryMetricsGrid.appendChild(card);
+            });
+        }
+        
+        const chartFontOptions = { font: { size: 10 }, color: '#6b7280' };
+
+        function renderProfitChart(history) {
+            if (profitChartInstance) profitChartInstance.destroy();
+            profitChartInstance = new Chart(profitChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: history.map(item => item.trade),
+                    datasets: [{
+                        label: 'Profit/Loss',
+                        data: history.map(item => item.profit),
+                        borderColor: 'rgb(0, 0, 0)', backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                        borderWidth: 0.5, 
+                        tension: 0.1,
+                        pointRadius: 0.5, 
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { titleFont: { size: 10 }, bodyFont: { size: 10 } } },
+                    scales: {
+                        x: { title: { display: true, text: 'Jumlah Perdagangan', font: chartFontOptions.font, color: chartFontOptions.color }, ticks: { font: { size: 9 } } },
+                        y: { 
+                            title: { display: true, text: 'P/L Kumulatif (Poin)', font: chartFontOptions.font, color: chartFontOptions.color }, 
+                            ticks: { font: { size: 9 }, callback: (value) => (value * 10).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) } 
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderPercentageGrowthChart(history) {
+            const container = document.getElementById('percentage-growth-chart-container');
+            if (!container) return;
+            container.style.display = 'block';
+
+            if (percentageGrowthChartInstance) percentageGrowthChartInstance.destroy();
+            percentageGrowthChartInstance = new Chart(percentageGrowthChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: history.map(item => item.trade),
+                    datasets: [{
+                        label: 'Pertumbuhan Kumulatif (%)',
+                        data: history.map(item => item.growth),
+                        borderColor: 'rgb(37, 99, 235)',
+                        backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                        borderWidth: 0.5,
+                        tension: 0.1,
+                        pointRadius: 0.5,
+                        pointHoverRadius: 5,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { titleFont: { size: 10 }, bodyFont: { size: 10 } } },
+                    scales: {
+                        x: { title: { display: true, text: 'Jumlah Perdagangan', font: chartFontOptions.font, color: chartFontOptions.color }, ticks: { font: { size: 9 } } },
+                        y: { 
+                            title: { display: true, text: 'Pertumbuhan Kumulatif (%)', font: chartFontOptions.font, color: chartFontOptions.color }, 
+                            ticks: { font: { size: 9 }, callback: (value) => `${value.toFixed(2)}%` } 
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderBalanceGrowthChart(history) {
+            const container = document.getElementById('balance-growth-chart-container');
+            if (!container) return;
+            container.style.display = 'block';
+
+            if (balanceGrowthChartInstance) balanceGrowthChartInstance.destroy();
+            balanceGrowthChartInstance = new Chart(balanceGrowthChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: history.map(item => item.trade),
+                    datasets: [{
+                        label: 'Balance Kumulatif ($)',
+                        data: history.map(item => item.balance),
+                        borderColor: 'rgb(16, 185, 129)', // Emerald green
+                        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                        borderWidth: 0.5,
+                        tension: 0.1,
+                        pointRadius: 0.5,
+                        pointHoverRadius: 5,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { titleFont: { size: 10 }, bodyFont: { size: 10 } } },
+                    scales: {
+                        x: { title: { display: true, text: 'Jumlah Perdagangan', font: chartFontOptions.font, color: chartFontOptions.color }, ticks: { font: { size: 9 } } },
+                        y: { 
+                            title: { display: true, text: 'Balance ($)', font: chartFontOptions.font, color: chartFontOptions.color }, 
+                            ticks: { font: { size: 9 }, callback: (value) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) } 
+                        }
+                    }
+                }
+            });
+        }
+        
+        function runFullAnalysis(csvText) {
+            try {
+                rawCsvText = csvText;
+                csvData = parseCsv(rawCsvText);
+                if (csvData.length === 0) {
+                    throw new Error('Tidak ada data yang valid di file CSV.');
+                }
+                
+                const riskPercentage = parseFloat(riskPercentageInput.value);
+                if (riskPercentageInput.value === '' || isNaN(riskPercentage)) {
+                    throw new Error('Nilai "Presentase per Trade" tidak valid atau kosong.');
+                }
+                
+                const initialBalance = parseFloat(initialBalanceInput.value);
+                if (isNaN(initialBalance)) {
+                    throw new Error('Nilai "Saldo Awal" tidak valid.');
+                }
+
+                statusContainer.innerHTML = '';
+                resultsContainer.classList.remove('hidden');
+
+                const metrics = calculateStatistics(csvData, riskPercentage, initialBalance);
+                renderMetrics(metrics);
+                renderProfitChart(metrics.profitHistory);
+                renderPercentageGrowthChart(metrics.growthHistory);
+                renderBalanceGrowthChart(metrics.balanceHistory);
+
+                const monthlySummaryData = calculateMonthlySummary(csvData, riskPercentage);
+                renderMonthlySummaryTable(monthlySummaryData);
+
+                calculateAndRenderPairStatistics(csvData);
+                
+                renderTable(csvData);
+
+                saveState();
+
+            } catch (err) {
+                console.error("Error processing file:", err);
+                statusContainer.innerHTML = `<p class="text-red-600 font-light text-sm">Kesalahan: ${err.message}.</p>`;
+                resultsContainer.classList.add('hidden');
+            }
+        }
+
+        function saveState() {
+            if (rawCsvText) localStorage.setItem('savedCsvData', rawCsvText);
+            const inputs = {
+                initialBalance: initialBalanceInput.value, 
+                riskPercentage: riskPercentageInput.value,
+            };
+            localStorage.setItem('savedInputs', JSON.stringify(inputs));
+        }
+
+        function loadState() {
+            const savedInputs = localStorage.getItem('savedInputs');
+            if (savedInputs) {
+                const inputs = JSON.parse(savedInputs);
+                initialBalanceInput.value = inputs.initialBalance || '1000';
+                riskPercentageInput.value = inputs.riskPercentage || '1';
+            }
+            const savedCsvData = localStorage.getItem('savedCsvData');
+            if (savedCsvData) {
+                runFullAnalysis(savedCsvData);
+            }
+            
+            loadPhotosFromLocalStorage();
+            renderPdfFileInfo();
+        }
+
+        fileUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            statusContainer.innerHTML = `<div class="flex justify-center items-center"><div class="w-6 h-6 border-4 border-dashed rounded-full animate-spin border-gray-900"></div></div>`;
+            resultsContainer.classList.add('hidden');
+            const reader = new FileReader();
+            reader.onload = (e) => runFullAnalysis(e.target.result);
+            reader.onerror = () => {
+                statusContainer.innerHTML = `<p class="text-red-600 font-light text-sm">Terjadi kesalahan saat membaca file.</p>`;
+                resultsContainer.classList.add('hidden');
+            };
+            reader.readAsText(file);
+        });
+        
+        document.addEventListener('DOMContentLoaded', loadState);
+
+        [initialBalanceInput, riskPercentageInput].forEach(input => {
+            input.addEventListener('input', () => { 
+                const value = input.value;
+                if (value && !isNaN(parseFloat(value)) && csvData.length > 0) {
+                    runFullAnalysis(rawCsvText);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
